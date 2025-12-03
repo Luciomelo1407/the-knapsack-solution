@@ -1,129 +1,193 @@
-#include <cstdio>
+
+
+#include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
-// #include <list>
-
+#include <stdbool.h>
 using namespace std;
 
-template <typename T> class list {
-private:
-  struct Node {
-    T *data;
-    Node *next;
-    Node *previous;
-  };
-  Node *node, *head, *tail;
-  int size;
+// TODO: remamber to use that in the finished project;
+//  #define MAX_WEIGHT 100
+//  #define MAX_VOLUME 100
+#define MAX_WEIGHT 2000
+#define MAX_VOLUME 12000
 
-public:
-  list() : size(), node(), head(), tail() {
-    size = 0;
-    node = nullptr;
-    head = nullptr;
-    tail = nullptr;
-  }
-
-  void push_back(T *data) {
-    Node *new_node = (Node *)malloc(sizeof(Node));
-    new_node->next = nullptr;
-    new_node->data = data;
-    if (size > 0) {
-      new_node->previous = node;
-      node->next = new_node;
-    } else {
-      new_node->previous = nullptr;
-      head = new_node;
-    }
-    tail = new_node;
-    node = new_node;
-    size++;
-  }
-
-  void pop() {
-    Node *swap = node;
-    if (size > 0) {
-      node = node->previous;
-      node->next = swap->next;
-    }
-    size--;
-    free(swap);
-  }
-
-  void forward() {
-    if (node->next) {
-      node = node->next;
-    }
-  }
-
-  void back() {
-    if (node->previous) {
-      node = node->previous;
-    }
-  }
-  void begin() {
-    while (node->previous) {
-      node = node->previous;
-    }
-  }
-  void end() {
-    while (node->next) {
-      node = node->next;
-    }
-  }
-};
+const int MAX_weight = MAX_WEIGHT;
+const int MAX_volume = MAX_VOLUME;
 
 typedef struct {
-  char car_plate[8];
-  int weight_capacity;
-  int volume_capacity;
-
-} Vehicle;
+  char plate[8];
+  int weight;
+  int volume;
+} Transport;
 
 typedef struct {
-  string code;
+  char code[14];
   float value;
   int weight;
   int volume;
+  bool avalible;
 } Product;
 
-void loadVehicle(Vehicle *vehicles, int size, ifstream &input) {
-  for (int i = 0; i < size; i++) {
-    input >> vehicles[i].car_plate;
-    input >> vehicles[i].weight_capacity;
-    input >> vehicles[i].volume_capacity;
+Transport *loadTransport(int transport_quantity, ifstream &input) {
+  Transport *transports =
+      (Transport *)malloc(transport_quantity * sizeof(Transport));
+  for (int i = 0; i < transport_quantity; i++) {
+    input >> transports[i].plate;
+    input >> transports[i].weight;
+    input >> transports[i].volume;
+  }
+  return transports;
+}
+
+Product *loadProducts(int products_quantity, ifstream &input) {
+  Product *products = (Product *)malloc(products_quantity * sizeof(Product));
+  for (int i = 0; i < 13; i++) {
+    products[0].code[i] = '0';
+  }
+  products[0].code[13] = '\0';
+  products[0].value = 0;
+  products[0].weight = 0;
+  products[0].volume = 0;
+  products[0].avalible = false;
+  for (int i = 1; i < products_quantity; i++) {
+    input >> products[i].code;
+    input >> products[i].value;
+    input >> products[i].weight;
+    input >> products[i].volume;
+    products[i].avalible = true;
+  }
+  return products;
+}
+
+void showProduct(Product product) {
+  cout << product.code << " " << product.value << " " << product.weight << " "
+       << product.volume << " " << product.avalible << "\n";
+}
+
+void showProducts(Product *products, int products_quantity) {
+  for (int i = 0; i < products_quantity; i++) {
+    showProduct(products[i]);
   }
 }
 
-void loadProducts(list<Product> &products, ifstream &input,
-                  int product_quantity) {
-  for (int i = 0; i < product_quantity; i++) {
-    Product *product = (Product *)malloc(sizeof(Product));
-    input >> product->code;
-    input >> product->value;
-    input >> product->weight;
-    input >> product->volume;
-    products.push_back(product);
+void showTransport(Transport transport) {
+  cout << transport.plate << " " << transport.weight << " " << transport.volume
+       << "\n";
+}
+
+void showTransports(Transport *transports, int transport_quantity) {
+  for (int i = 0; i < transport_quantity; i++) {
+    showTransport(transports[i]);
   }
+}
+
+float max(float v1, float v2) {
+  if (v1 > v2) {
+    return v1;
+  }
+  return v2;
+}
+
+void buildMatrix(float ***values, int products_quantity, Product *products);
+
+void backTrack(float ***values, int products_quantity, Product *products,
+               Transport transport, ofstream &output) {
+  int limit = 100;
+  Product *products_filled = (Product *)malloc(limit * sizeof(Product));
+  int products_filled_size = 0;
+  int weight_filled = 0;
+  int volume_filled = 0;
+  float totalValue = 0;
+  int w = transport.weight;
+  int v = transport.volume;
+  for (int p = products_quantity - 1; p > 0; p--) {
+    if ((values[p][w][v] != values[p - 1][w][v]) && products[p].avalible) {
+      products[p].avalible = false;
+      if (products_filled_size == limit - 1) {
+        cout << "Cabou o espaço para itens dentro do buffer" << "\n";
+        break;
+      }
+      products_filled[products_filled_size] = products[p];
+      products_filled_size++;
+      weight_filled += products[p].weight;
+      volume_filled += products[p].volume;
+      totalValue += products[p].value;
+
+      w -= products[p].weight;
+      v -= products[p].volume;
+    }
+  }
+  output << '[' << transport.plate << "]R$" << totalValue << ','
+         << weight_filled << "KG("
+         << round(((double)weight_filled / (double)transport.weight) * 100)
+         << "%)," << volume_filled << "L("
+         << round(((double)volume_filled / (double)transport.volume) * 100)
+         << "%)->";
+  for (int i = products_filled_size - 1; i >= 0; i--) {
+    output << products_filled[i].code;
+    if (i > 0) {
+      output << ",";
+    }
+  }
+  output << "\n";
+  free(products_filled);
 }
 
 int main(int argc, char *argv[]) {
   ifstream input(argv[1]);
-  int transport_qauntity;
-  input >> transport_qauntity;
-  Vehicle *vehicles = (Vehicle *)malloc(transport_qauntity * sizeof(Vehicle));
-  loadVehicle(vehicles, transport_qauntity, input);
-  for (int i = 0; i < transport_qauntity; i++) {
-    cout << vehicles[i].car_plate << " ";
-    cout << vehicles[i].weight_capacity << " ";
-    cout << vehicles[i].volume_capacity << "\n";
+  ofstream output(argv[2]);
+
+  int transport_quantity;
+  input >> transport_quantity;
+
+  Transport *transports = loadTransport(transport_quantity, input);
+
+  int products_quantity;
+  input >> products_quantity;
+  products_quantity++;
+
+  Product *products = loadProducts(products_quantity, input);
+
+  float ***valueMatrix =
+      (float ***)malloc(products_quantity * sizeof(float **));
+  if (valueMatrix == NULL) {
+    cerr << "Erro: Memoria insuficiente para a matriz." << endl;
+    return 1;
+  }
+  for (int i = 0; i < products_quantity; i++) {
+    valueMatrix[i] = (float **)malloc((MAX_WEIGHT + 1) * sizeof(float *));
+    for (int w = 0; w <= MAX_WEIGHT; w++) {
+      valueMatrix[i][w] = (float *)malloc((MAX_VOLUME + 1) * sizeof(float));
+    }
   }
 
-  int product_quantity;
-  input >> product_quantity;
-  int *teste = nullptr;
-  list<Product> products;
-  loadProducts(products, input, product_quantity);
+  buildMatrix(valueMatrix, products_quantity, products);
+  backTrack(valueMatrix, products_quantity, products, transports[0], output);
+  backTrack(valueMatrix, products_quantity, products, transports[1], output);
 
   return 0;
+}
+
+void buildMatrix(float ***values, int products_quantity, Product *products) {
+  for (int p = 0; p < products_quantity; p++) {
+    for (int w = 0; w <= MAX_weight; w++) {
+      for (int v = 0; v <= MAX_volume; v++) {
+        if (p == 0 || w == 0 || v == 0) {
+          values[p][w][v] = 0;
+        } else {
+          if ((w - products[p].weight < 0) || (v - products[p].volume < 0)) {
+            values[p][w][v] = values[p - 1][w][v];
+          } else {
+            values[p][w][v] = max(
+                values[p - 1][w][v],
+                values[p - 1][w - products[p].weight][v - products[p].volume] +
+                    products[p].value);
+          }
+        }
+      }
+    }
+  }
 }

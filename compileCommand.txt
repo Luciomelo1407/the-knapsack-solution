@@ -1,0 +1,1 @@
+g++ -Wall -O3 luciosantosmelo_202200092727_transportadora.cpp -o luciosantosmelo_202200092727_transportadora -lm -lpthread 2>&1
