@@ -104,7 +104,7 @@ void backTrack(float ***values, int products_quantity, Product *products,
   int w = transport.weight;
   int v = transport.volume;
   for (int p = products_quantity - 1; p > 0; p--) {
-    if ((values[p][w][v] != values[p - 1][w][v]) && products[p].avalible) {
+    if ((values[p][w][v] > values[p - 1][w][v])) {
       products[p].avalible = false;
       if (products_filled_size == limit - 1) {
         cout << "Cabou o espaço para itens dentro do buffer" << "\n";
@@ -136,6 +136,17 @@ void backTrack(float ***values, int products_quantity, Product *products,
   free(products_filled);
 }
 
+int copyVector(Product *products, Product *buffer, int products_quantity) {
+  int counter = 1;
+  for (int i = 1; i < products_quantity; i++) {
+    if (products[i].avalible) {
+      buffer[counter] = products[i];
+      counter++;
+    }
+  }
+  return counter;
+}
+
 int main(int argc, char *argv[]) {
   ifstream input(argv[1]);
   ofstream output(argv[2]);
@@ -150,6 +161,9 @@ int main(int argc, char *argv[]) {
   products_quantity++;
 
   Product *products = loadProducts(products_quantity, input);
+  Product *buffer = (Product *)calloc(products_quantity, sizeof(Product));
+
+  int bufferSize = 0;
 
   float ***valueMatrix =
       (float ***)malloc(products_quantity * sizeof(float **));
@@ -164,10 +178,30 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  buildMatrix(valueMatrix, products_quantity, products);
-  backTrack(valueMatrix, products_quantity, products, transports[0], output);
-  backTrack(valueMatrix, products_quantity, products, transports[1], output);
+  products_quantity = copyVector(products, buffer, products_quantity);
+  for (int i = 0; i < transport_quantity; i++) {
+    buildMatrix(valueMatrix, products_quantity, buffer);
+    backTrack(valueMatrix, products_quantity, buffer, transports[i], output);
+    products_quantity = copyVector(buffer, buffer, products_quantity);
+  }
 
+  float rest_value = 0;
+  int rest_weight = 0;
+  int rest_volume = 0;
+  for (int i = 1; i < products_quantity; i++) {
+    rest_value += buffer[i].value;
+    rest_weight += buffer[i].weight;
+    rest_volume += buffer[i].volume;
+  }
+  output << "PENDENTE:R$" << rest_value << "," << rest_weight << "KG,"
+         << rest_volume << "L->";
+
+  for (int i = 1; i < products_quantity; i++) {
+    output << buffer[i].code;
+    if (!(i == products_quantity - 1)) {
+      cout << ",";
+    }
+  }
   return 0;
 }
 
